@@ -112,6 +112,7 @@ class FileParser(ParallelScript):
                                 dst_dir_path: str,
                                 chunk_byte_size: int = 1_000_000_000
                                 ) -> List[str]:
+        # split file
         fs = Filesplit()
         chunk_file_paths = []
         fs.split(file=src_file_path,
@@ -119,6 +120,11 @@ class FileParser(ParallelScript):
                  output_dir=dst_dir_path,
                  callback=lambda path, bytes_: chunk_file_paths.append(path),
                  newline=True)
+
+        # delete manifest file
+        manifest_file_path = os.path.join(dst_dir_path, 'fs_manifest.csv')
+        if os.path.exists(manifest_file_path):
+            os.remove(manifest_file_path)
 
         return chunk_file_paths
 
