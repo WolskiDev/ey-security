@@ -47,16 +47,16 @@ class FileParser(ParallelScript):
         else:
             self.log.info(f'Parsing completed (wall time: {timer.time_string})')
 
-    def _parse_file_main(self, src_file_path: str) -> None:
+    def _parse_file_main(self, logs_file_path: str) -> None:
         # parse source file path
-        src_file_dir, src_file_basename = os.path.split(src_file_path)
-        src_file_name, src_file_ext = os.path.splitext(src_file_basename)
+        logs_file_dir, logs_file_name = os.path.split(logs_file_path)
+        logs_file_name_base, logs_file_name_ext = os.path.splitext(logs_file_name)
 
         # define output directories
-        output_dir_path = os.path.join(src_file_dir, src_file_name)
-        split_dir_path = os.path.join(src_file_dir, src_file_name, '.split')
-        parsed_dir_path = os.path.join(src_file_dir, src_file_name, '.parsed')
-        tabularized_dir_path = os.path.join(src_file_dir, src_file_name, '.tabularized')
+        output_dir_path = os.path.join(logs_file_dir, logs_file_name_base)
+        split_dir_path = os.path.join(logs_file_dir, logs_file_name_base, '.0_split')
+        parsed_dir_path = os.path.join(logs_file_dir, logs_file_name_base, '.1_parsed')
+        tabularized_dir_path = os.path.join(logs_file_dir, logs_file_name_base, '.2_tabularized')
 
         # initialize output directories
         self.log.info('Initializing output directories')
@@ -67,7 +67,7 @@ class FileParser(ParallelScript):
 
         # split source file into evenly sized chunks of logs
         self.log.info('Splitting source file into chunks...')
-        chunk_file_paths = self._split_file_into_chunks(src_file_path=src_file_path,
+        chunk_file_paths = self._split_file_into_chunks(src_file_path=logs_file_path,
                                                         dst_dir_path=split_dir_path)
         self.log.info(f'Source file split into {len(chunk_file_paths)} chunks')
 
@@ -95,14 +95,14 @@ class FileParser(ParallelScript):
 
         # merge parsed table chunks
         self.log.info('Concatenating parsed file chunks...')
-        self._concatenate_tabularized_chunks(original_file_name=src_file_name,
+        self._concatenate_tabularized_chunks(original_file_name=logs_file_name_base,
                                              tabularized_file_paths_dict=table_file_paths_dict,
                                              dst_dir_path=output_dir_path)
         self.log.info('Done concatenating parsed file chunks')
 
         # merge files with leftover logs that were not parsed by any of the parsers
         self.log.info('Concatenating unparsed file chunks...')
-        self._concatenate_unparsed_chunks(original_file_name=src_file_name,
+        self._concatenate_unparsed_chunks(original_file_name=logs_file_name_base,
                                           unparsed_file_paths=unparsed_file_paths,
                                           dst_dir_path=output_dir_path)
         self.log.info('Done concatenating unparsed file chunks')
