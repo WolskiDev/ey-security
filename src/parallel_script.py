@@ -54,7 +54,6 @@ class ParallelScript(ABC):
                     result_objects.append(task_result)
 
                 # clean up
-                self.log.info(f'Closing process pool...')
                 process_pool.close()
                 process_pool.join()
                 self.log.info(f'Process pool closed')
@@ -91,7 +90,6 @@ class ParallelScript(ABC):
                     result_objects.append(thread_result)
 
                 # clean up
-                self.log.info(f'Closing thread pool...')
                 thread_pool.close()
                 thread_pool.join()
                 self.log.info(f'Thread pool closed')
