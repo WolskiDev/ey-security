@@ -8,11 +8,12 @@ from typing import Tuple, List, Dict
 
 from src.utils import Timer
 from src.log_parsers import HuaweiLogParser, CheckPointLogParser
-from src.parallel_script import ParallelScript, params
+from src.parallel_executor import ParallelExecutor, params
 
 
-class FileParser(ParallelScript):
+class FileParser(ParallelExecutor):
     """Main log file parser class."""
+    _auto_log_msg_prefix = "(parallel executor) "
     unparsed_short_name = 'na'
     records_ext = '.records'
     keys_ext = '.keys'
