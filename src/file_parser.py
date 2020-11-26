@@ -28,73 +28,76 @@ class FileParser(ParallelExecutor):
         self.delete_intermediate_result_dirs = delete_intermediate_result_dirs
         # TODO: implement the above action
 
-    def parse_file(self, src_file_path: str) -> None:
-        self.log.info(f'Parsing {src_file_path}')
+    def parse_file(self, src_file_path: str, output_dir_path: str = None) -> None:
+        assert os.path.exists(src_file_path), 'Specified source file path does not exist'
+        assert not os.path.exists(output_dir_path), 'Specified output directory already exists'
+        self.log.info(f'Parsing: {src_file_path}')
         try:
             with Timer() as timer:
-                self._parse_file_main(src_file_path)
+                self._parse_file_main(src_file_path, output_dir_path)
         except Exception as e:
             self.log.critical(f'Parsing failed with exception: {str(e)}', exc_info=True)
         else:
             self.log.info(f'Parsing completed (wall time: {timer.time_string})')
 
-    def _parse_file_main(self, logs_file_path: str) -> None:
+    def _parse_file_main(self, logs_file_path: str, out_dir_path: str = None, chunk_size: int = 1_000_000_000) -> None:
         # define output directories
         logs_file_dir, logs_file_name_base, logs_file_name_ext = self._split_file_path(logs_file_path)
-        output_dir_path = os.path.join(logs_file_dir, logs_file_name_base)
-        split_dir_path = os.path.join(logs_file_dir, logs_file_name_base, '.0_split')
-        parsed_dir_path = os.path.join(logs_file_dir, logs_file_name_base, '.1_parsed')
-        tabularized_dir_path = os.path.join(logs_file_dir, logs_file_name_base, '.2_tabularized')
+        output_dir_path = out_dir_path or os.path.join(logs_file_dir, logs_file_name_base)
+        split_dir_path = os.path.join(output_dir_path, '.0_split')
+        parsed_dir_path = os.path.join(output_dir_path, '.1_parsed')
+        tabularized_dir_path = os.path.join(output_dir_path, '.2_tabularized')
 
         # initialize main output directory
-        self.log.info('Initializing output directory')
+        self.log.info(f'Initializing output directory: {output_dir_path}')
         os.makedirs(output_dir_path)
 
         # split source file into evenly sized chunks of logs
-        self.log.info('Splitting source file into chunks...')
+        self.log.info('STAGE_1: Splitting source file into chunks...')
         os.makedirs(split_dir_path)
         self._split_file_into_chunks(src_file_path=logs_file_path,
-                                     dst_dir_path=split_dir_path)
-        self.log.info(f'Source file split into chunks')
+                                     dst_dir_path=split_dir_path,
+                                     chunk_byte_size=chunk_size)
+        self.log.info(f'STAGE_1: Source file split into chunks')
 
         # extract features from chunks of logs and save them as records
-        self.log.info('Parsing source file chunks...')
+        self.log.info('STAGE_2: Parsing source file chunks...')
         os.makedirs(parsed_dir_path)
         self._parse_file_chunks(src_dir_path=split_dir_path,
                                 dst_dir_path=parsed_dir_path)
-        self.log.info('Done parsing source file chunks')
+        self.log.info('STAGE_2: Done parsing source file chunks')
 
         # get all unique feature names extracted from chunks by each parser and order them to form column names
-        self.log.info('Gathering unique feature names...')
+        self.log.info('STAGE_3: Gathering unique feature names...')
         records_table_headers_dict = self._get_final_table_headers(src_dir_path=parsed_dir_path)
-        self.log.info('Done gathering unique feature names')
+        self.log.info('STAGE_3: Done gathering unique feature names')
 
         # convert files with records into tabularic tsv files with matching headers
-        self.log.info('Tabularizing parsed file chunks...')
+        self.log.info('STAGE_4: Tabularizing parsed file chunks...')
         os.makedirs(tabularized_dir_path)
         self._tabularize_parsed_chunks(src_dir_path=parsed_dir_path,
                                        dst_dir_path=tabularized_dir_path,
                                        records_table_headers_dict=records_table_headers_dict, )
-        self.log.info('Done tabularizing parsed file chunks')
+        self.log.info('STAGE_4: Done tabularizing parsed file chunks')
 
         # merge parsed table chunks
-        self.log.info('Concatenating parsed file chunks...')
+        self.log.info('STAGE_5: Merging parsed file chunks...')
         self._concatenate_tabularized_chunks(src_dir_path=tabularized_dir_path,
                                              dst_dir_path=output_dir_path,
                                              orig_file_name_base=logs_file_name_base)
-        self.log.info('Done concatenating parsed file chunks')
+        self.log.info('STAGE_5: Done merging parsed file chunks')
 
         # merge files with leftover logs that were not parsed by any of the parsers
-        self.log.info('Concatenating unparsed file chunks...')
+        self.log.info('STAGE_6: Merging unparsed file chunks...')
         self._concatenate_unparsed_chunks(src_dir_path=parsed_dir_path,
                                           dst_dir_path=output_dir_path,
                                           orig_file_name_base=logs_file_name_base)
-        self.log.info('Done concatenating unparsed file chunks')
+        self.log.info('STAGE_6: Done merging unparsed file chunks')
 
     def _split_file_into_chunks(self,
                                 src_file_path: str,
                                 dst_dir_path: str,
-                                chunk_byte_size: int = 1_000_000_000
+                                chunk_byte_size: int = 1_000_000_000  # 1GB
                                 ) -> None:
         # define split callback function that renames created file chunk
         def rename_chunk(chunk_path: str):
@@ -288,7 +291,7 @@ class FileParser(ParallelExecutor):
 
     def _concatenate_tabularized_chunks(self, src_dir_path: str, dst_dir_path: str, orig_file_name_base: str) -> None:
         # create separate output table for each parser
-        for parser in self.log_parsers:
+        for parser_no, parser in enumerate(self.log_parsers, start=1):
             # get directory with tables with data produced by the selected parser
             parser_name = parser.short_name
             parser_tables_dir = os.path.join(src_dir_path, parser_name)
@@ -305,9 +308,9 @@ class FileParser(ParallelExecutor):
             dst_file_path = os.path.join(dst_dir_path, dst_file_name)
 
             # concatenate
-            for table_idx, table_file_path in enumerate(chunk_tables_file_paths):
-                # TODO: Improve logging (here and everywhere else)
-                self.log.info(f'Creating {dst_file_name} (chunk {table_idx + 1}/{len(chunk_tables_file_paths)})')
+            for table_idx, table_file_path in enumerate(chunk_tables_file_paths, start=1):
+                self.log.info(f'(file {parser_no}/{len(self.log_parsers)}) Merging file chunk {table_idx} of'
+                              f' {len(chunk_tables_file_paths)}')
                 with open(dst_file_path, mode='a+') as dst_file:
                     with open(table_file_path) as table_file:
                         if table_idx > 0:
@@ -331,8 +334,8 @@ class FileParser(ParallelExecutor):
         dst_file_path = os.path.join(dst_dir_path, dst_file_name)
 
         # concatenate unparsed logs
-        for file_idx, unparsed_file_path in enumerate(chunk_unparsed_file_paths):
-            self.log.info(f'Creating {dst_file_name} (chunk {file_idx + 1}/{len(chunk_unparsed_file_paths)})')
+        for file_idx, unparsed_file_path in enumerate(chunk_unparsed_file_paths, start=1):
+            self.log.info(f'(file 1/1) Merging file chunk {file_idx} of {len(chunk_unparsed_file_paths)}')
             with open(dst_file_path, mode='a+') as dst_file:
                 with open(unparsed_file_path) as unparsed_file:
                     lines = unparsed_file.readlines()
