@@ -6,7 +6,7 @@ from fsplit.filesplit import Filesplit
 from typing import Callable, Dict, List
 
 from src.utils import Timer, df2tsv
-from src.log_parsers import HuaweiLogParser, CheckPointLogParser
+from src.log_parsers import UnparsableLogError, HuaweiLogParser, CheckPointLogParser
 from src.parallel_executor import ParallelExecutor, params
 
 
@@ -29,13 +29,13 @@ class FileParser(ParallelExecutor):
         # TODO: implement the above action
         self.export_df = df_export_func
 
-    def parse_file(self, src_file_path: str, output_dir_path: str = None) -> None:
+    def parse_file(self, src_file_path: str, out_dir_path: str = None) -> None:
         assert os.path.exists(src_file_path), 'Specified source file path does not exist'
-        assert not os.path.exists(output_dir_path), 'Specified output directory already exists'
+        assert not os.path.exists(out_dir_path), 'Specified output directory already exists'
         self.log.info(f'Parsing: {src_file_path}')
         try:
             with Timer() as timer:
-                self._parse_file_main(src_file_path, output_dir_path)
+                self._parse_file_main(src_file_path, out_dir_path)
         except Exception as e:
             self.log.critical(f'Parsing failed with exception: {str(e)}', exc_info=True)
         else:
@@ -164,7 +164,7 @@ class FileParser(ParallelExecutor):
                         records_dict[parser_name].append(record)
                         keys_dict[parser_name].update(record)
                         break
-                    except Exception:
+                    except UnparsableLogError:
                         pass
                 else:
                     unparsed_logs.append(log_entry.strip())
@@ -363,4 +363,5 @@ if __name__ == '__main__':
     fp = FileParser(log_parsers=[HuaweiLogParser, CheckPointLogParser],
                     max_processes=multiprocessing.cpu_count() - 3,
                     max_threads=1)
-    fp.parse_file(r'C:\Users\Mateusz.Wolski\PycharmProjects\ey-security\data\central_log_file.log')
+    fp.parse_file(src_file_path=r'C:\Users\Mateusz.Wolski\PycharmProjects\ey-security\data\central_log_file.log',
+                  out_dir_path=r'C:\Users\Mateusz.Wolski\PycharmProjects\ey-security\data\central_log_file_1')

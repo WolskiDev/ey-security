@@ -4,6 +4,10 @@ from abc import ABC, abstractmethod
 from typing import Dict, Any
 
 
+class UnparsableLogError(Exception):
+    pass
+
+
 class LogParser(ABC):
     """Abstract class for log parsers."""
 
@@ -41,14 +45,16 @@ class CheckPointLogParser(LogParser):
         entry_parts = self._parse_entry(log_entry)
         params_str = entry_parts.pop('params')
         params_dict = self._parse_params(params_str)
-        entry_parts.update(params_dict)
+        record = entry_parts | params_dict
 
-        record = {k.strip(): v for k, v in entry_parts.items()}
+        # strip record keys of trailing/leading white characters (precaution)
+        record = {k.strip(): v for k, v in record.items()}
 
         return record
 
-    def _parse_entry(self, text: str, year: str = '2020') -> Dict[str, Any]:
-        match = self.entry_mask.match(text)
+    def _parse_entry(self, log_entry: str, year: str = '2020') -> Dict[str, Any]:
+        if not (match := self.entry_mask.match(log_entry)):
+            raise UnparsableLogError('Input does not match entry mask.')
         date_base, interface_1, date_timezone, interface_2, params = match.groups()
 
         date_str_repr = ' '.join([year, date_base])
@@ -100,12 +106,16 @@ class HuaweiLogParser(LogParser):
         params_str = entry_parts.pop('params')
         params_dict = self._parse_params_1(params_str)
         params_dict.update(self._parse_params_2(params_str))
-        entry_parts.update(params_dict)
+        record = entry_parts | params_dict
 
-        return entry_parts
+        # strip record keys of trailing/leading white characters (precaution)
+        record = {k.strip(): v for k, v in record.items()}
+
+        return record
 
     def _parse_entry(self, log_entry: str, year: str = '2020') -> Dict[str, Any]:
-        match = self.entry_mask.match(log_entry)
+        if not (match := self.entry_mask.match(log_entry)):
+            raise UnparsableLogError('Input does not match entry mask.')
         group_dict = match.groupdict()
 
         date = group_dict.get('timestamp_1')
