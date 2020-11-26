@@ -219,7 +219,8 @@ class FileParser(ParallelExecutor):
                 unique_keys.update(keys)
 
             # sort keys so that user made fields (starting with '_') are a the beginning
-            sorted_keys = sorted(unique_keys, key=lambda x: '0' + str(x) if str(x).startswith('_') else '1' + str(x))
+            sorted_keys = sorted(unique_keys,
+                                 key=lambda x: '0' + str(x).lower() if str(x).startswith('_') else '1' + str(x).lower())
             headers_dict[parser_name] = sorted_keys
 
         return headers_dict
