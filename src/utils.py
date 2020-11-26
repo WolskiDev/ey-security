@@ -1,4 +1,6 @@
+import csv
 import logging
+import pandas as pd
 import sys
 import time
 
@@ -34,15 +36,45 @@ class Timer(object):
                 return f"<1ms"
 
 
-def initialize_logger(name: str):
+def initialize_logger(name: str) -> logging.Logger:
     """Initialize logger logging message, timestamp, process name and thread name."""
     logger = logging.getLogger(name=name)
     logger.setLevel(logging.INFO)
-    message_format = logging.Formatter(fmt='[%(asctime)s] [%(processName)s %(threadName)s] %(message)s',
-                                       datefmt='%Y-%m-%d %H:%M:%S')
+    message_format = logging.Formatter(
+        fmt='[%(asctime)s] [%(processName)s %(threadName)s] %(message)s',
+        datefmt='%Y-%m-%d %H:%M:%S'
+    )
 
     console_handler = logging.StreamHandler(sys.stdout)
     console_handler.setLevel(logging.INFO)
     console_handler.setFormatter(fmt=message_format)
     logger.addHandler(console_handler)
     return logger
+
+
+def df2tsv(df: pd.DataFrame, dst_file_path: str, **kwargs) -> None:
+    df.to_csv(
+        path_or_buf=dst_file_path,
+        sep='\t',
+        header=True,
+        index=False,
+        quoting=csv.QUOTE_ALL,
+        quotechar='"',
+        encoding='utf8',
+        mode='w',
+        **kwargs
+    )
+
+
+def tsv2df(src_file_path: str, **kwargs) -> pd.DataFrame:
+    return pd.read_csv(
+        filepath_or_buffer=src_file_path,
+        sep='\t',
+        header=0,
+        index_col=None,
+        quoting=csv.QUOTE_ALL,
+        quotechar='"',
+        encoding='utf8',
+        low_memory=False,
+        **kwargs
+    )

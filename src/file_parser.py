@@ -1,13 +1,12 @@
-import csv
 import multiprocessing
 import os
 import pandas as pd
 import re
 from fsplit.filesplit import Filesplit
-from typing import Tuple, List, Dict
+from typing import Callable, Dict, List
 
-from src.utils import Timer
-from src.log_parsers import HuaweiLogParser, CheckPointLogParser
+from src.utils import Timer, df2tsv
+from src.log_parsers import UnparsableLogError, HuaweiLogParser, CheckPointLogParser
 from src.parallel_executor import ParallelExecutor, params
 
 
@@ -22,19 +21,21 @@ class FileParser(ParallelExecutor):
                  log_parsers: list,
                  max_processes: int = None,
                  max_threads: int = None,
-                 delete_intermediate_result_dirs: bool = True):
+                 delete_intermediate_result_dirs: bool = True,
+                 df_export_func: Callable = df2tsv):
         super().__init__(max_processes, max_threads)
         self.log_parsers = log_parsers
         self.delete_intermediate_result_dirs = delete_intermediate_result_dirs
         # TODO: implement the above action
+        self.export_df = df_export_func
 
-    def parse_file(self, src_file_path: str, output_dir_path: str = None) -> None:
+    def parse_file(self, src_file_path: str, out_dir_path: str = None) -> None:
         assert os.path.exists(src_file_path), 'Specified source file path does not exist'
-        assert not os.path.exists(output_dir_path), 'Specified output directory already exists'
+        assert not os.path.exists(out_dir_path), 'Specified output directory already exists'
         self.log.info(f'Parsing: {src_file_path}')
         try:
             with Timer() as timer:
-                self._parse_file_main(src_file_path, output_dir_path)
+                self._parse_file_main(src_file_path, out_dir_path)
         except Exception as e:
             self.log.critical(f'Parsing failed with exception: {str(e)}', exc_info=True)
         else:
@@ -163,7 +164,7 @@ class FileParser(ParallelExecutor):
                         records_dict[parser_name].append(record)
                         keys_dict[parser_name].update(record)
                         break
-                    except Exception:
+                    except UnparsableLogError:
                         pass
                 else:
                     unparsed_logs.append(log_entry.strip())
@@ -219,7 +220,8 @@ class FileParser(ParallelExecutor):
                 unique_keys.update(keys)
 
             # sort keys so that user made fields (starting with '_') are a the beginning
-            sorted_keys = sorted(unique_keys, key=lambda x: '0' + str(x) if str(x).startswith('_') else '1' + str(x))
+            sorted_keys = sorted(unique_keys,
+                                 key=lambda x: '0' + str(x).lower() if str(x).startswith('_') else '1' + str(x).lower())
             headers_dict[parser_name] = sorted_keys
 
         return headers_dict
@@ -280,14 +282,7 @@ class FileParser(ParallelExecutor):
 
         # export table to tsv
         os.makedirs(os.path.join(dst_dir_path, parser_name), exist_ok=True)
-        result_df.to_csv(path_or_buf=dst_file_path,
-                         sep='\t',
-                         encoding='utf8',
-                         header=True,
-                         index=False,
-                         quoting=csv.QUOTE_ALL,
-                         quotechar='"',
-                         mode='w')
+        self.export_df(result_df, dst_file_path)
 
     def _concatenate_tabularized_chunks(self, src_dir_path: str, dst_dir_path: str, orig_file_name_base: str) -> None:
         # create separate output table for each parser
@@ -368,4 +363,5 @@ if __name__ == '__main__':
     fp = FileParser(log_parsers=[HuaweiLogParser, CheckPointLogParser],
                     max_processes=multiprocessing.cpu_count() - 3,
                     max_threads=1)
-    fp.parse_file(r'C:\Users\Mateusz.Wolski\PycharmProjects\ey-security\data\central_log_file.log')
+    fp.parse_file(src_file_path=r'C:\Users\Mateusz.Wolski\PycharmProjects\ey-security\data\central_log_file.log',
+                  out_dir_path=r'C:\Users\Mateusz.Wolski\PycharmProjects\ey-security\data\central_log_file_1')
