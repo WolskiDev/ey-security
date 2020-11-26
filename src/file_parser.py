@@ -1,12 +1,11 @@
-import csv
 import multiprocessing
 import os
 import pandas as pd
 import re
 from fsplit.filesplit import Filesplit
-from typing import Tuple, List, Dict
+from typing import Callable, Dict, List
 
-from src.utils import Timer
+from src.utils import Timer, df2tsv
 from src.log_parsers import HuaweiLogParser, CheckPointLogParser
 from src.parallel_executor import ParallelExecutor, params
 
@@ -22,11 +21,13 @@ class FileParser(ParallelExecutor):
                  log_parsers: list,
                  max_processes: int = None,
                  max_threads: int = None,
-                 delete_intermediate_result_dirs: bool = True):
+                 delete_intermediate_result_dirs: bool = True,
+                 df_export_func: Callable = df2tsv):
         super().__init__(max_processes, max_threads)
         self.log_parsers = log_parsers
         self.delete_intermediate_result_dirs = delete_intermediate_result_dirs
         # TODO: implement the above action
+        self.export_df = df_export_func
 
     def parse_file(self, src_file_path: str, output_dir_path: str = None) -> None:
         assert os.path.exists(src_file_path), 'Specified source file path does not exist'
@@ -281,14 +282,7 @@ class FileParser(ParallelExecutor):
 
         # export table to tsv
         os.makedirs(os.path.join(dst_dir_path, parser_name), exist_ok=True)
-        result_df.to_csv(path_or_buf=dst_file_path,
-                         sep='\t',
-                         encoding='utf8',
-                         header=True,
-                         index=False,
-                         quoting=csv.QUOTE_ALL,
-                         quotechar='"',
-                         mode='w')
+        self.export_df(result_df, dst_file_path)
 
     def _concatenate_tabularized_chunks(self, src_dir_path: str, dst_dir_path: str, orig_file_name_base: str) -> None:
         # create separate output table for each parser
