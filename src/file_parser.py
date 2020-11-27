@@ -4,9 +4,9 @@ import pandas as pd
 import re
 import shutil
 from fsplit.filesplit import Filesplit
-from typing import Callable, Dict, List
+from typing import Callable, Dict, List, Type
 
-from src.log_parsers import UnparsableLogError, HuaweiLogParser, CheckPointLogParser
+from src.log_parsers import UnparsableLogError, HuaweiLogParser, CheckPointLogParser, LogParser
 from src.parallel_executor import ParallelExecutor, params
 from src.utils import Timer, df2tsv
 
@@ -19,7 +19,7 @@ class FileParser(ParallelExecutor):
     keys_ext = '.keys'
 
     def __init__(self,
-                 log_parsers: list,
+                 log_parsers: List[Type[LogParser]],
                  max_processes: int = None,
                  max_threads: int = None,
                  delete_intermediate_result_dirs: bool = True,
@@ -209,7 +209,7 @@ class FileParser(ParallelExecutor):
         headers_dict = dict()
         for parser in self.log_parsers:
             # get directory with parser's output
-            parser_name = parser.short_name
+            parser_name = str(parser.short_name)
             parser_results_dir = os.path.join(src_dir_path, parser_name)
 
             # get chunk .keys file paths
@@ -241,7 +241,7 @@ class FileParser(ParallelExecutor):
         params_list = []
         for parser in self.log_parsers:
             # get directory with parser's output
-            parser_name = parser.short_name
+            parser_name = str(parser.short_name)
             parser_results_dir = os.path.join(src_dir_path, parser_name)
 
             # get chunk .records file paths
@@ -294,7 +294,7 @@ class FileParser(ParallelExecutor):
         # create separate output table for each parser
         for parser_no, parser in enumerate(self.log_parsers, start=1):
             # get directory with tables with data produced by the selected parser
-            parser_name = parser.short_name
+            parser_name = str(parser.short_name)
             parser_tables_dir = os.path.join(src_dir_path, parser_name)
 
             # get chunk .records file paths
