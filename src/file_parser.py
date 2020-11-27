@@ -1,3 +1,4 @@
+import datetime
 import multiprocessing
 import os
 import pandas as pd
@@ -31,7 +32,8 @@ class FileParser(ParallelExecutor):
 
     def parse_file(self, src_file_path: str, out_dir_path: str = None) -> None:
         assert os.path.exists(src_file_path), 'Specified source file path does not exist'
-        assert not os.path.exists(out_dir_path), 'Specified output directory already exists'
+        if out_dir_path:
+            assert not os.path.exists(out_dir_path), 'Specified output directory already exists'
         self.log.info(f'Parsing: {src_file_path}')
         try:
             with Timer() as timer:
@@ -42,9 +44,12 @@ class FileParser(ParallelExecutor):
             self.log.info(f'Parsing completed (wall time: {timer.time_string})')
 
     def _parse_file_main(self, logs_file_path: str, out_dir_path: str = None, chunk_size: int = 1_000_000_000) -> None:
-        # define output directories
+        # define main output directory
         logs_file_dir, logs_file_name_base, logs_file_name_ext = self._split_file_path(logs_file_path)
-        output_dir_path = out_dir_path or os.path.join(logs_file_dir, logs_file_name_base)
+        run_timestamp = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
+        output_dir_path = out_dir_path or os.path.join(logs_file_dir, f'{logs_file_name_base}_{run_timestamp}')
+
+        # define temporary output subdirectories
         split_dir_path = os.path.join(output_dir_path, '.0_split')
         parsed_dir_path = os.path.join(output_dir_path, '.1_parsed')
         tabularized_dir_path = os.path.join(output_dir_path, '.2_tabularized')
