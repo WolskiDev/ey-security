@@ -2,12 +2,13 @@ import multiprocessing
 import os
 import pandas as pd
 import re
+import shutil
 from fsplit.filesplit import Filesplit
 from typing import Callable, Dict, List
 
-from src.utils import Timer, df2tsv
 from src.log_parsers import UnparsableLogError, HuaweiLogParser, CheckPointLogParser
 from src.parallel_executor import ParallelExecutor, params
+from src.utils import Timer, df2tsv
 
 
 class FileParser(ParallelExecutor):
@@ -26,7 +27,6 @@ class FileParser(ParallelExecutor):
         super().__init__(max_processes, max_threads)
         self.log_parsers = log_parsers
         self.delete_intermediate_result_dirs = delete_intermediate_result_dirs
-        # TODO: implement the above action
         self.export_df = df_export_func
 
     def parse_file(self, src_file_path: str, out_dir_path: str = None) -> None:
@@ -66,6 +66,8 @@ class FileParser(ParallelExecutor):
         os.makedirs(parsed_dir_path)
         self._parse_file_chunks(src_dir_path=split_dir_path,
                                 dst_dir_path=parsed_dir_path)
+        if self.delete_intermediate_result_dirs:
+            shutil.rmtree(split_dir_path)
         self.log.info('STAGE_2: Done parsing source file chunks')
 
         # get all unique feature names extracted from chunks by each parser and order them to form column names
@@ -78,29 +80,33 @@ class FileParser(ParallelExecutor):
         os.makedirs(tabularized_dir_path)
         self._tabularize_parsed_chunks(src_dir_path=parsed_dir_path,
                                        dst_dir_path=tabularized_dir_path,
-                                       records_table_headers_dict=records_table_headers_dict, )
+                                       records_table_headers_dict=records_table_headers_dict)
         self.log.info('STAGE_4: Done tabularizing parsed file chunks')
 
-        # merge parsed table chunks
-        self.log.info('STAGE_5: Merging parsed file chunks...')
-        self._concatenate_tabularized_chunks(src_dir_path=tabularized_dir_path,
-                                             dst_dir_path=output_dir_path,
-                                             orig_file_name_base=logs_file_name_base)
-        self.log.info('STAGE_5: Done merging parsed file chunks')
-
         # merge files with leftover logs that were not parsed by any of the parsers
-        self.log.info('STAGE_6: Merging unparsed file chunks...')
+        self.log.info('STAGE_5: Merging unparsed file chunks...')
         self._concatenate_unparsed_chunks(src_dir_path=parsed_dir_path,
                                           dst_dir_path=output_dir_path,
                                           orig_file_name_base=logs_file_name_base)
-        self.log.info('STAGE_6: Done merging unparsed file chunks')
+        if self.delete_intermediate_result_dirs:
+            shutil.rmtree(parsed_dir_path)
+        self.log.info('STAGE_5: Done merging unparsed file chunks')
+
+        # merge parsed table chunks
+        self.log.info('STAGE_6: Merging parsed file chunks...')
+        self._concatenate_tabularized_chunks(src_dir_path=tabularized_dir_path,
+                                             dst_dir_path=output_dir_path,
+                                             orig_file_name_base=logs_file_name_base)
+        if self.delete_intermediate_result_dirs:
+            shutil.rmtree(tabularized_dir_path)
+        self.log.info('STAGE_6: Done merging parsed file chunks')
 
     def _split_file_into_chunks(self,
                                 src_file_path: str,
                                 dst_dir_path: str,
                                 chunk_byte_size: int = 1_000_000_000  # 1GB
                                 ) -> None:
-        # define split callback function that renames created file chunk
+        # define helper method that renames created file chunk
         def rename_chunk(chunk_path: str):
             directory, name, extension = self._split_file_path(chunk_path)
             chunk_id = re.match(r'^.*_(?P<id>\d+)$', name).group('id')
