@@ -33,9 +33,9 @@ class CheckPointLogParser(LogParser):
 
     def __init__(self):
         self.entry_mask = re.compile(r'^(\w+ [ ]?\d+ \d\d:\d\d:\d\d) '
-                                     r'([\d\.]+) '
-                                     r'([\+\-]\d\d:\d\d) '
-                                     r'([\d\.]+) '
+                                     r'([\d.]+) '
+                                     r'([+\-]\d\d:\d\d) '
+                                     r'([\d.]+) '
                                      r'(.*)$')
         self.params_mask = re.compile(r'((?<=\" ).*?)'
                                       r'[:]?='
@@ -83,23 +83,23 @@ class HuaweiLogParser(LogParser):
 
     def __init__(self):
         self.entry_mask = re.compile(r'^(?P<timestamp_1>\w+ [ ]?\d+ \d\d:\d\d:\d\d) '
-                                     r'(?:(?P<interface_1>[\d\.]+) )?'
-                                     r'(?:(?P<timestamp_2>\d\d\d\d\-\d\d\-\d\d \d\d:\d\d:\d\d) )?'
+                                     r'(?:(?P<interface_1>[\d.]+) )?'
+                                     r'(?:(?P<timestamp_2>\d\d\d\d-\d\d-\d\d \d\d:\d\d:\d\d) )?'
                                      r'(?P<interface_2>\S+) '
                                      r'%%'
-                                     r'(?P<event_name>[^\s\(\)\[\]]+?)'
-                                     r'(?:[\(](?P<event_brace_round>\S+)[\)])?'
-                                     r'(?:[\[](?P<event_brace_square>\S+)[\]])?'
+                                     r'(?P<event_name>[^\s()\[\]]+?)'
+                                     r'(?:[(](?P<event_brace_round>\S+)[)])?'
+                                     r'(?:[\[](?P<event_brace_square>\S+)[]])?'
                                      r':'
                                      r'(?P<params>.*)$')
-        self.params_mask_1 = re.compile(r'((?:(?<=, )|(?<=,)|(?<=\())[^\s\(\)&,]+?)'
+        self.params_mask_1 = re.compile(r'((?:(?<=, )|(?<=,)|(?<=\())[^\s()&,]+?)'
                                         r'='
                                         r'\"?(.*?)\"?'
                                         r'(?:,|\.$|\)$)')
-        self.params_mask_2 = re.compile(r'(?:(?:(?<=; )|(?<=;)|(?<=\())(?:\[.*\])?([^(\)&,]+?))'
+        self.params_mask_2 = re.compile(r'(?:(?:(?<=; )|(?<=;)|(?<=\())(?:\[.*])?([^()&,]+?))'
                                         r':'
                                         r'\"?(.*?)\"?'
-                                        r'(?:;)')  # orig: (?:;|\)$)     older orig: (?:;|\.$|\)$)
+                                        r'(?:;)')
 
     def parse(self, log_entry: str) -> Dict[str, str]:
         entry_parts = self._parse_entry(log_entry)
