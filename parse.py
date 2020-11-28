@@ -29,11 +29,11 @@ def init(args):
 
 def get_args_parser():
     parser = argparse.ArgumentParser(
-        description='Parses input log file and saves the results as tables in a directory named after the source file '
-                    '(with timestamp).'
+        description='Parses log file under specified path and saves the results in a tabular format in a directory '
+                    'named after the source file (appended with timestamp).'
     )
     parser.add_argument(
-        'src-file-path',
+        'src_file_path',
         metavar='<path>',
         action='store',
         type=str,
@@ -77,7 +77,7 @@ def get_args_parser():
         action='store_true'
     )
     parser.formatter_class = argparse.RawDescriptionHelpFormatter
-    parser.epilog = 'authors:\n  Mateusz Wolski (mateusz.wolski@pl.ey.com)'
+    parser.epilog = 'authors:\n  Mateusz Wolski (github.com/WolskiDev)'
 
     return parser
 

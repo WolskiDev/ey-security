@@ -1,5 +1,4 @@
 import datetime
-import multiprocessing
 import os
 import pandas as pd
 import re
@@ -7,7 +6,7 @@ import shutil
 from fsplit.filesplit import Filesplit
 from typing import Callable, Dict, List, Type
 
-from src.log_parsers import UnparsableLogError, HuaweiLogParser, CheckPointLogParser, LogParser
+from src.log_parsers import UnparsableLogError, LogParser
 from src.parallel_executor import ParallelExecutor, params
 from src.utils import Timer, df2tsv
 
@@ -109,7 +108,7 @@ class FileParser(ParallelExecutor):
     def _split_file_into_chunks(self,
                                 src_file_path: str,
                                 dst_dir_path: str,
-                                chunk_byte_size: int = 1_000_000_000  # 1GB
+                                chunk_byte_size: int = 1_000_000_000  # ~1GB
                                 ) -> None:
         # define helper method that renames created file chunk
         def rename_chunk(chunk_path: str):
@@ -368,11 +367,3 @@ class FileParser(ParallelExecutor):
         sorted_chunk_names = sorted(chunk_names, key=key)
 
         return sorted_chunk_names
-
-
-if __name__ == '__main__':
-    fp = FileParser(log_parsers=[HuaweiLogParser, CheckPointLogParser],
-                    max_processes=multiprocessing.cpu_count() - 3,
-                    max_threads=1)
-    fp.parse_file(src_file_path=r'C:\Users\Mateusz.Wolski\PycharmProjects\ey-security\data\central_log_file.log',
-                  out_dir_path=r'C:\Users\Mateusz.Wolski\PycharmProjects\ey-security\data\central_log_file_1')
