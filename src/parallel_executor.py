@@ -1,5 +1,6 @@
 import logging
 import multiprocessing
+from multiprocessing.pool import ThreadPool
 from typing import Tuple, List, Iterable, Callable, Any, Union
 
 from src.utils import Timer, initialize_logger
@@ -82,7 +83,7 @@ class ParallelExecutor:
         if effective_threads_num >= 2:
             result_objects = []
             self.log.info(f'{self._auto_log_msg_prefix}Initializing thread pool...')
-            with multiprocessing.pool.ThreadPool(effective_threads_num) as thread_pool:
+            with ThreadPool(effective_threads_num) as thread_pool:
                 self.log.info(f'{self._auto_log_msg_prefix}Thread pool initialized with {effective_threads_num} '
                               f'threads')
                 for (task_id, task_total), (task_args, task_kwargs) in params_list:
