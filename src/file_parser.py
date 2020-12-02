@@ -24,12 +24,14 @@ class FileParser(ParallelExecutor):
                  log_parsers: List[Type[LogParser]],
                  max_processes: int = None,
                  max_threads: int = None,
+                 parse_chunk_size: int = 1_000_000_000,  # ~1GB
                  delete_intermediate_result_dirs: bool = True,
                  df_export_func: Callable = df2tsv):
         super().__init__(max_processes=max_processes,
                          max_threads=max_threads,
                          auto_log_msg_prefix="(parallel executor) ")
         self.log_parsers = log_parsers
+        self.chunk_byte_size = parse_chunk_size
         self.delete_intermediate_result_dirs = delete_intermediate_result_dirs
         self.export_df = df_export_func
 
@@ -46,7 +48,7 @@ class FileParser(ParallelExecutor):
         else:
             self.log.info(f'Parsing completed (wall time: {timer.time_string})')
 
-    def _parse_file_main(self, logs_file_path: str, out_dir_path: str = None, chunk_size: int = 1_000_000_000) -> None:
+    def _parse_file_main(self, logs_file_path: str, out_dir_path: str = None) -> None:
         # define main output directory
         logs_file_dir, logs_file_name_base, _ = self.split_file_path(logs_file_path)
         run_timestamp = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
@@ -65,8 +67,7 @@ class FileParser(ParallelExecutor):
         self.log.info('STAGE_1: Splitting source file into chunks...')
         os.makedirs(split_dir_path)
         self._split_file_into_chunks(src_file_path=logs_file_path,
-                                     dst_dir_path=split_dir_path,
-                                     chunk_byte_size=chunk_size)
+                                     dst_dir_path=split_dir_path)
         self.log.info(f'STAGE_1: Source file split into chunks')
 
         # extract features from chunks of logs and save them as records
@@ -109,12 +110,8 @@ class FileParser(ParallelExecutor):
             shutil.rmtree(tabularized_dir_path)
         self.log.info('STAGE_6: Done merging parsed file chunks')
 
-    def _split_file_into_chunks(self,
-                                src_file_path: str,
-                                dst_dir_path: str,
-                                chunk_byte_size: int = 1_000_000_000  # ~1GB
-                                ) -> None:
-        # define helper method that renames created file chunk
+    def _split_file_into_chunks(self, src_file_path: str, dst_dir_path: str) -> None:
+        # define helper method that renames file chunks created with FileSplit
         def rename_chunk(chunk_path: str):
             directory, name, extension = self.split_file_path(chunk_path)
             chunk_id = re.match(r'^.*_(?P<id>\d+)$', name).group('id')
@@ -122,24 +119,32 @@ class FileParser(ParallelExecutor):
             os.rename(chunk_path, new_chunk_path)
             return new_chunk_path
 
-        # initialize file paths list
-        chunk_file_paths = list()
+        # if source file size is bigger than defined chunk size split it into chunks
+        if os.path.getsize(src_file_path) > self.chunk_byte_size:
+            # initialize file paths list
+            chunk_file_paths = list()
 
-        # split file
-        fs = Filesplit()
-        fs.split(file=src_file_path,
-                 split_size=chunk_byte_size,
-                 output_dir=dst_dir_path,
-                 callback=lambda path, _: chunk_file_paths.append(path),
-                 newline=True)
+            # split file
+            fs = Filesplit()
+            fs.split(file=src_file_path,
+                     split_size=self.chunk_byte_size,
+                     output_dir=dst_dir_path,
+                     callback=lambda path, _: chunk_file_paths.append(path),
+                     newline=True)
 
-        # rename files on file paths list
-        chunk_file_paths = [rename_chunk(path) for path in chunk_file_paths]
+            # rename files on file paths list
+            chunk_file_paths = [rename_chunk(path) for path in chunk_file_paths]
 
-        # delete manifest file
-        manifest_file_path = os.path.join(dst_dir_path, 'fs_manifest.csv')
-        if os.path.exists(manifest_file_path):
-            os.remove(manifest_file_path)
+            # delete manifest file
+            manifest_file_path = os.path.join(dst_dir_path, 'fs_manifest.csv')
+            if os.path.exists(manifest_file_path):
+                os.remove(manifest_file_path)
+
+        else:
+            # copy and rename the source file
+            _, _, extension = self.split_file_path(src_file_path)
+            dst_file_path = os.path.join(dst_dir_path, f'chunk_1{extension}')
+            shutil.copy(src_file_path, dst_file_path)
 
     def _parse_file_chunks(self,
                            src_dir_path: str,
