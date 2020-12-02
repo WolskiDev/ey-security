@@ -119,6 +119,11 @@ class FileParser(ParallelExecutor):
             os.rename(chunk_path, new_chunk_path)
             return new_chunk_path
 
+        # define callback function for FileSplit.split
+        def note_created_file(file_path: str, file_path_list: list):
+            self.log.debug(f'Creating file: {file_path}')
+            file_path_list.append(file_path)
+
         # if source file size is bigger than defined chunk size split it into chunks
         if os.path.getsize(src_file_path) > self.chunk_byte_size:
             # initialize file paths list
@@ -129,7 +134,7 @@ class FileParser(ParallelExecutor):
             fs.split(file=src_file_path,
                      split_size=self.chunk_byte_size,
                      output_dir=dst_dir_path,
-                     callback=lambda path, _: chunk_file_paths.append(path),
+                     callback=lambda path, _: note_created_file(path, chunk_file_paths),
                      newline=True)
 
             # rename files on file paths list
