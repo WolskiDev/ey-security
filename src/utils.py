@@ -5,7 +5,7 @@ import sys
 import time
 
 
-class Timer(object):
+class Timer:
     """Time code execution."""
 
     def __enter__(self):
