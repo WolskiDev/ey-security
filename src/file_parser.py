@@ -45,7 +45,7 @@ class FileParser(ParallelExecutor):
 
     def _parse_file_main(self, logs_file_path: str, out_dir_path: str = None, chunk_size: int = 1_000_000_000) -> None:
         # define main output directory
-        logs_file_dir, logs_file_name_base, logs_file_name_ext = self._split_file_path(logs_file_path)
+        logs_file_dir, logs_file_name_base, _ = self._split_file_path(logs_file_path)
         run_timestamp = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
         output_dir_path = out_dir_path or os.path.join(logs_file_dir, f'{logs_file_name_base}_{run_timestamp}')
 
@@ -156,7 +156,7 @@ class FileParser(ParallelExecutor):
                           src_file_path: str,
                           dst_dir_path: str
                           ) -> None:
-        src_file_dir, src_file_name, src_file_ext = self._split_file_path(src_file_path)
+        _, src_file_name, src_file_ext = self._split_file_path(src_file_path)
 
         # initialize parsers
         parsers = {p.short_name: p() for p in self.log_parsers}
@@ -168,7 +168,7 @@ class FileParser(ParallelExecutor):
 
         # parse file chunk
         with open(src_file_path) as file:
-            for idx, log_entry in enumerate(file):
+            for log_entry in file:
                 for parser_name, parser in parsers.items():
                     try:
                         record = parser.parse(log_entry)
@@ -307,7 +307,7 @@ class FileParser(ParallelExecutor):
             chunk_tables_file_paths = [os.path.join(src_dir_path, parser_name, n) for n in chunk_tables_file_names]
 
             # parse first of the table files paths
-            src_file_dir, src_file_name, src_file_ext = self._split_file_path(chunk_tables_file_paths[0])
+            _, _, src_file_ext = self._split_file_path(chunk_tables_file_paths[0])
 
             # get final table file path
             dst_file_name = f'{orig_file_name_base}.{parser_name}{src_file_ext}'
