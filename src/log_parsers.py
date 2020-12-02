@@ -60,14 +60,13 @@ class CheckPointLogParser(LogParser):
         date_str_repr = ' '.join([year, date_base])
         dt = self._parse_date(date_str_repr)
 
-        res = {
+        return {
             '_a_timestamp': dt.strftime('%Y%m%d%H%M%S'),
             '_b_datetime': str(dt),
             '_c_interface_1': interface_1,
             '_d_interface_2': interface_2,
             'params': params
         }
-        return res
 
     @staticmethod
     def _parse_date(date_str: str) -> datetime.datetime:
@@ -129,7 +128,7 @@ class HuaweiLogParser(LogParser):
         date_str_repr = ' '.join([year, date])
         dt = self._parse_date(date_str_repr)
 
-        res = {
+        return {
             '_a_timestamp': int(dt.strftime('%Y%m%d%H%M%S')),
             '_b_datetime': str(dt),
             '_c_interface_1': interface_1,
@@ -137,8 +136,8 @@ class HuaweiLogParser(LogParser):
             '_e_event_name': event_name,
             '_f_event_brace_round': event_brace_round,
             '_g_event_brace_square': event_brace_square,
-            'params': params}
-        return res
+            'params': params
+        }
 
     @staticmethod
     def _parse_date(date_str: str) -> datetime.datetime:
