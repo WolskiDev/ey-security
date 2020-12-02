@@ -4,7 +4,7 @@ import pandas as pd
 import re
 import shutil
 from fsplit.filesplit import Filesplit
-from typing import Callable, Dict, List, Type
+from typing import Callable, Dict, List, Tuple, Type
 
 from src.log_parsers import UnparsableLogError, LogParser
 from src.parallel_executor import ParallelExecutor, params
@@ -65,14 +65,14 @@ class FileParser(ParallelExecutor):
 
         # split source file into evenly sized chunks of logs
         self.log.info('STAGE_1: Splitting source file into chunks...')
-        os.makedirs(split_dir_path)
+        self._create_temp_directory(split_dir_path)
         self._split_file_into_chunks(src_file_path=logs_file_path,
                                      dst_dir_path=split_dir_path)
         self.log.info(f'STAGE_1: Source file split into chunks')
 
         # extract features from chunks of logs and save them as records
         self.log.info('STAGE_2: Parsing source file chunks...')
-        os.makedirs(parsed_dir_path)
+        self._create_temp_directory(parsed_dir_path)
         self._parse_file_chunks(src_dir_path=split_dir_path,
                                 dst_dir_path=parsed_dir_path)
         self._remove_directory(split_dir_path)
@@ -85,7 +85,7 @@ class FileParser(ParallelExecutor):
 
         # convert files with records into tabularic tsv files with matching headers
         self.log.info('STAGE_4: Tabularizing parsed file chunks...')
-        os.makedirs(tabularized_dir_path)
+        self._create_temp_directory(tabularized_dir_path)
         self._tabularize_parsed_chunks(src_dir_path=parsed_dir_path,
                                        dst_dir_path=tabularized_dir_path,
                                        records_table_headers_dict=records_table_headers_dict)
@@ -191,9 +191,9 @@ class FileParser(ParallelExecutor):
                     unparsed_logs.append(log_entry.strip())
 
         # create output directories (if they don't already exist)
-        os.makedirs(os.path.join(dst_dir_path, self.unparsed_short_name), exist_ok=True)
+        self._create_temp_directory(os.path.join(dst_dir_path, self.unparsed_short_name), exist_ok=True)
         for parser_name in parsers:
-            os.makedirs(os.path.join(dst_dir_path, parser_name), exist_ok=True)
+            self._create_temp_directory(os.path.join(dst_dir_path, parser_name), exist_ok=True)
 
         # save successfully parsed results as records and keys (unique features from all records)
         for parser_name, records in records_dict.items():
@@ -302,7 +302,7 @@ class FileParser(ParallelExecutor):
         result_df = result_df.append(records, ignore_index=True)
 
         # export table to tsv
-        os.makedirs(os.path.join(dst_dir_path, parser_name), exist_ok=True)
+        self._create_temp_directory(os.path.join(dst_dir_path, parser_name), exist_ok=True)
         self.export_df(result_df, dst_file_path)
 
     def _concatenate_tabularized_chunks(self, src_dir_path: str, dst_dir_path: str, orig_file_name_base: str) -> None:
@@ -357,13 +357,21 @@ class FileParser(ParallelExecutor):
                     lines = unparsed_file.readlines()
                 dst_file.writelines(lines)
 
-    def _remove_directory(self, dir_path: str):
+    def _create_temp_directory(self, dir_path: str, exist_ok: bool = False, **kwargs) -> None:
+        if os.path.exists(dir_path):
+            if not exist_ok:
+                FileExistsError(f'Cannot create a directory when that directory already exists: `{dir_path}`')
+        else:
+            self.log.debug(f'Creating directory: {dir_path}')
+            os.makedirs(dir_path, exist_ok=exist_ok, **kwargs)
+
+    def _remove_directory(self, dir_path: str) -> None:
         if self.delete_intermediate_result_dirs:
             self.log.debug(f'Removing directory: {dir_path}')
             shutil.rmtree(dir_path)
 
     @staticmethod
-    def split_file_path(file_path: str):
+    def split_file_path(file_path: str) -> Tuple[str, str, str]:
         file_dir, file_name = os.path.split(file_path)
         file_name_base, file_name_ext = os.path.splitext(file_name)
         return file_dir, file_name_base, file_name_ext
