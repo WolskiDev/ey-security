@@ -21,10 +21,12 @@ def params(*args, **kwargs):
 class ParallelExecutor:
     """Simple tool for process and thread based task parallelization."""
 
-    _auto_log_msg_prefix = ""
-
-    def __init__(self, max_processes: int = DEFAULT_PROCESS_NUM, max_threads: int = DEFAULT_THREAD_NUM):
+    def __init__(self,
+                 max_processes: int = DEFAULT_PROCESS_NUM,
+                 max_threads: int = DEFAULT_THREAD_NUM,
+                 auto_log_msg_prefix: str = ''):
         self.log = script_logger
+        self._auto_log_msg_prefix = auto_log_msg_prefix
 
         assert int(max_processes) > 0, "Max number of processes has to be greater than zero."
         self.max_processes = int(max_processes)

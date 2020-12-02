@@ -13,7 +13,6 @@ from src.utils import Timer, df2tsv
 
 class FileParser(ParallelExecutor):
     """Main log file parser class."""
-    _auto_log_msg_prefix = "(parallel executor) "
     unparsed_short_name = 'na'
     records_ext = '.records'
     keys_ext = '.keys'
@@ -24,7 +23,9 @@ class FileParser(ParallelExecutor):
                  max_threads: int = None,
                  delete_intermediate_result_dirs: bool = True,
                  df_export_func: Callable = df2tsv):
-        super().__init__(max_processes, max_threads)
+        super().__init__(max_processes=max_processes,
+                         max_threads=max_threads,
+                         auto_log_msg_prefix="(parallel executor) ")
         self.log_parsers = log_parsers
         self.delete_intermediate_result_dirs = delete_intermediate_result_dirs
         self.export_df = df_export_func
