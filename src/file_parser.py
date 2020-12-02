@@ -75,8 +75,7 @@ class FileParser(ParallelExecutor):
         os.makedirs(parsed_dir_path)
         self._parse_file_chunks(src_dir_path=split_dir_path,
                                 dst_dir_path=parsed_dir_path)
-        if self.delete_intermediate_result_dirs:
-            shutil.rmtree(split_dir_path)
+        self._remove_directory(split_dir_path)
         self.log.info('STAGE_2: Done parsing source file chunks')
 
         # get all unique feature names extracted from chunks by each parser and order them to form column names
@@ -97,8 +96,7 @@ class FileParser(ParallelExecutor):
         self._concatenate_unparsed_chunks(src_dir_path=parsed_dir_path,
                                           dst_dir_path=output_dir_path,
                                           orig_file_name_base=logs_file_name_base)
-        if self.delete_intermediate_result_dirs:
-            shutil.rmtree(parsed_dir_path)
+        self._remove_directory(parsed_dir_path)
         self.log.info('STAGE_5: Done merging unparsed file chunks')
 
         # merge parsed table chunks
@@ -106,8 +104,7 @@ class FileParser(ParallelExecutor):
         self._concatenate_tabularized_chunks(src_dir_path=tabularized_dir_path,
                                              dst_dir_path=output_dir_path,
                                              orig_file_name_base=logs_file_name_base)
-        if self.delete_intermediate_result_dirs:
-            shutil.rmtree(tabularized_dir_path)
+        self._remove_directory(tabularized_dir_path)
         self.log.info('STAGE_6: Done merging parsed file chunks')
 
     def _split_file_into_chunks(self, src_file_path: str, dst_dir_path: str) -> None:
@@ -359,6 +356,11 @@ class FileParser(ParallelExecutor):
                 with open(unparsed_file_path) as unparsed_file:
                     lines = unparsed_file.readlines()
                 dst_file.writelines(lines)
+
+    def _remove_directory(self, dir_path: str):
+        if self.delete_intermediate_result_dirs:
+            self.log.debug(f'Removing directory: {dir_path}')
+            shutil.rmtree(dir_path)
 
     @staticmethod
     def split_file_path(file_path: str):
