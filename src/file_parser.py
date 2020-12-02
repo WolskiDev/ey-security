@@ -11,6 +11,9 @@ from src.parallel_executor import ParallelExecutor, params
 from src.utils import Timer, df2tsv
 
 
+FILE_CHUNK_SORT_MASK = re.compile(r'^chunk_(?P<id>\d+)(?:[.].*)?$')
+
+
 class FileParser(ParallelExecutor):
     """Main log file parser class."""
     unparsed_short_name = 'na'
@@ -357,11 +360,9 @@ class FileParser(ParallelExecutor):
     def _get_sorted_chunk_names(src_dir_path: str, mask: str = '.*') -> List[str]:
         # define sort key function
         def key(file_name: str):
-            match = re.match(rf'^chunk_(?P<id>\d+)(?:[.].*)?$', file_name)
-            if match:
-                return int(match.group('id'))
-            else:
-                raise Exception(f'File name `{file_name}` does not match the key file mask.')
+            assert (match := FILE_CHUNK_SORT_MASK.match(file_name)), \
+                f'File name `{file_name}` does not match the sort key file mask.'
+            return int(match.group('id'))
 
         # get chunk file names matching mask and sort them using custom key
         chunk_names = [f for f in os.listdir(src_dir_path) if re.match(mask, f)]
