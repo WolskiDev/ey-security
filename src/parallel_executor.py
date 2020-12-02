@@ -1,4 +1,3 @@
-import logging
 import multiprocessing
 from typing import Tuple, List, Iterable, Callable, Any, Union
 
@@ -7,11 +6,9 @@ from src.utils import Timer, initialize_logger
 
 DEFAULT_PROCESS_NUM = multiprocessing.cpu_count() - 1
 DEFAULT_THREAD_NUM = 1
-LOGGER_NAME = 'parallel_executor'
 
 
-initialize_logger(LOGGER_NAME)
-script_logger = logging.getLogger(LOGGER_NAME)
+script_logger = initialize_logger('parallel_executor')
 
 
 def params(*args, **kwargs):
