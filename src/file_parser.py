@@ -166,17 +166,18 @@ class FileParser(ParallelExecutor):
                           src_file_path: str,
                           dst_dir_path: str
                           ) -> None:
+        # parse file path
         _, src_file_name, src_file_ext = self.split_file_path(src_file_path)
 
-        # initialize parsers
+        # initialize log parsers
         parsers = {p.short_name: p() for p in self.log_parsers}
 
-        # initialize parsing results
+        # initialize log parsing results
         records_dict = {k: [] for k in parsers.keys()}
         keys_dict = {k: set() for k in parsers.keys()}
         unparsed_logs = []
 
-        # parse file chunk
+        # parse logs file chunk
         with open(src_file_path) as file:
             for log_entry in file:
                 for parser_name, parser in parsers.items():
@@ -190,9 +191,21 @@ class FileParser(ParallelExecutor):
                 else:
                     unparsed_logs.append(log_entry.strip())
 
+        # save records and keys of parsed logs
+        self._persist_parsed_data(src_file_name=src_file_name,
+                                  dst_dir_path=dst_dir_path,
+                                  records_dict=records_dict,
+                                  keys_dict=keys_dict)
+
+        # save unparsed logs
+        self._persist_unparsed_logs(src_file_name=src_file_name,
+                                    dst_dir_path=dst_dir_path,
+                                    file_ext=src_file_ext,
+                                    unparsed_logs=unparsed_logs)
+
+    def _persist_parsed_data(self, src_file_name: str, dst_dir_path: str, records_dict: dict, keys_dict: dict) -> None:
         # create output directories (if they don't already exist)
-        self._create_temp_directory(os.path.join(dst_dir_path, self.unparsed_short_name), exist_ok=True)
-        for parser_name in parsers:
+        for parser_name in records_dict.keys():
             self._create_temp_directory(os.path.join(dst_dir_path, parser_name), exist_ok=True)
 
         # save successfully parsed results as records and keys (unique features from all records)
@@ -200,6 +213,7 @@ class FileParser(ParallelExecutor):
             records_file_name = f'{src_file_name}.{parser_name}{self.records_ext}'
             records_file_path = os.path.join(dst_dir_path, parser_name, records_file_name)
 
+            self.log.debug(f'Creating file: {records_file_path}')
             with open(records_file_path, mode='w+') as file:
                 for record in records:
                     file.write(str(record) + '\n')
@@ -208,15 +222,21 @@ class FileParser(ParallelExecutor):
             keys_file_name = f'{src_file_name}.{parser_name}{self.keys_ext}'
             keys_file_path = os.path.join(dst_dir_path, parser_name, keys_file_name)
 
+            self.log.debug(f'Creating file: {keys_file_path}')
             with open(keys_file_path, mode='w+') as file:
                 for key in keys:
                     file.write(str(key) + '\n')
 
-        # save leftover (unparsed) logs
-        unparsed_file_name = f'{src_file_name}.{self.unparsed_short_name}{src_file_ext}'
+    def _persist_unparsed_logs(self, src_file_name: str, dst_dir_path: str, file_ext: str, unparsed_logs: list) -> None:
+        # create output directory
+        self._create_temp_directory(os.path.join(dst_dir_path, self.unparsed_short_name), exist_ok=True)
+
+        # save unparsed logs
+        unparsed_file_name = f'{src_file_name}.{self.unparsed_short_name}{file_ext}'
         unparsed_file_path = os.path.join(dst_dir_path, self.unparsed_short_name, unparsed_file_name)
 
         with open(unparsed_file_path, mode='w+') as file:
+            self.log.debug(f'Creating file: {unparsed_file_path}')
             for log in unparsed_logs:
                 file.write(str(log) + '\n')
 
