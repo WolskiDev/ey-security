@@ -57,20 +57,16 @@ class CheckPointLogParser(LogParser):
             raise UnparsableLogError('Input does not match entry mask.')
         date_base, interface_1, date_timezone, interface_2, params = match.groups()
 
-        date_str_repr = ' '.join([year, date_base])
-        dt = self._parse_date(date_str_repr)
+        date_str = f'{year}  {date_base}'
+        date_dt = datetime.datetime.strptime(date_str, '%Y %b %d %H:%M:%S')
 
         return {
-            '_a_timestamp': dt.strftime('%Y%m%d%H%M%S'),
-            '_b_datetime': str(dt),
+            '_a_timestamp': date_dt.strftime('%Y%m%d%H%M%S'),
+            '_b_datetime': str(date_dt),
             '_c_interface_1': interface_1,
             '_d_interface_2': interface_2,
             'params': params
         }
-
-    @staticmethod
-    def _parse_date(date_str: str) -> datetime.datetime:
-        return datetime.datetime.strptime(date_str, '%Y %b %d %H:%M:%S')
 
     def _parse_params(self, params_str: str) -> dict:
         return dict(self.params_mask.findall('" ' + params_str.strip()))
@@ -117,7 +113,7 @@ class HuaweiLogParser(LogParser):
             raise UnparsableLogError('Input does not match entry mask.')
         group_dict = match.groupdict()
 
-        date = group_dict.get('timestamp_1')
+        date_base = group_dict.get('timestamp_1')
         interface_1 = group_dict.get('interface_1')
         interface_2 = group_dict.get('interface_2')
         event_name = group_dict.get('event_name')
@@ -125,12 +121,12 @@ class HuaweiLogParser(LogParser):
         event_brace_square = group_dict.get('event_brace_square')
         params = group_dict.get('params')
 
-        date_str_repr = ' '.join([year, date])
-        dt = self._parse_date(date_str_repr)
+        date_str = f'{year}  {date_base}'
+        date_dt = datetime.datetime.strptime(date_str, '%Y %b %d %H:%M:%S')
 
         return {
-            '_a_timestamp': int(dt.strftime('%Y%m%d%H%M%S')),
-            '_b_datetime': str(dt),
+            '_a_timestamp': int(date_dt.strftime('%Y%m%d%H%M%S')),
+            '_b_datetime': str(date_dt),
             '_c_interface_1': interface_1,
             '_d_interface_2': interface_2,
             '_e_event_name': event_name,
@@ -138,10 +134,6 @@ class HuaweiLogParser(LogParser):
             '_g_event_brace_square': event_brace_square,
             'params': params
         }
-
-    @staticmethod
-    def _parse_date(date_str: str) -> datetime.datetime:
-        return datetime.datetime.strptime(date_str, '%Y %b %d %H:%M:%S')
 
     def _parse_params_1(self, params_str: str) -> dict:
         return dict(self.params_mask_1.findall(',' + params_str.strip()))
