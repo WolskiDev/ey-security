@@ -48,7 +48,7 @@ class FileParser(ParallelExecutor):
 
     def _parse_file_main(self, logs_file_path: str, out_dir_path: str = None, chunk_size: int = 1_000_000_000) -> None:
         # define main output directory
-        logs_file_dir, logs_file_name_base, _ = self._split_file_path(logs_file_path)
+        logs_file_dir, logs_file_name_base, _ = self.split_file_path(logs_file_path)
         run_timestamp = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
         output_dir_path = out_dir_path or os.path.join(logs_file_dir, f'{logs_file_name_base}_{run_timestamp}')
 
@@ -116,7 +116,7 @@ class FileParser(ParallelExecutor):
                                 ) -> None:
         # define helper method that renames created file chunk
         def rename_chunk(chunk_path: str):
-            directory, name, extension = self._split_file_path(chunk_path)
+            directory, name, extension = self.split_file_path(chunk_path)
             chunk_id = re.match(r'^.*_(?P<id>\d+)$', name).group('id')
             new_chunk_path = os.path.join(directory, f'chunk_{chunk_id}{extension}')
             os.rename(chunk_path, new_chunk_path)
@@ -147,7 +147,7 @@ class FileParser(ParallelExecutor):
                            ) -> None:
 
         # get chunk file paths
-        chunk_file_names = self._get_sorted_chunk_names(src_dir_path=src_dir_path)
+        chunk_file_names = self.get_sorted_chunk_names(src_dir_path=src_dir_path)
         chunk_file_paths = [os.path.join(src_dir_path, n) for n in chunk_file_names]
 
         # parse chunk files (concurrently)
@@ -159,7 +159,7 @@ class FileParser(ParallelExecutor):
                           src_file_path: str,
                           dst_dir_path: str
                           ) -> None:
-        _, src_file_name, src_file_ext = self._split_file_path(src_file_path)
+        _, src_file_name, src_file_ext = self.split_file_path(src_file_path)
 
         # initialize parsers
         parsers = {p.short_name: p() for p in self.log_parsers}
@@ -221,8 +221,8 @@ class FileParser(ParallelExecutor):
             parser_results_dir = os.path.join(src_dir_path, parser_name)
 
             # get chunk .keys file paths
-            chunk_keys_file_names = self._get_sorted_chunk_names(src_dir_path=parser_results_dir,
-                                                                 mask=rf'^.*{self.keys_ext}$')
+            chunk_keys_file_names = self.get_sorted_chunk_names(src_dir_path=parser_results_dir,
+                                                                mask=rf'^.*{self.keys_ext}$')
             chunk_keys_file_paths = [os.path.join(src_dir_path, parser_name, n) for n in chunk_keys_file_names]
 
             # get unique keys sets for each parser
@@ -253,8 +253,8 @@ class FileParser(ParallelExecutor):
             parser_results_dir = os.path.join(src_dir_path, parser_name)
 
             # get chunk .records file paths
-            chunk_records_file_names = self._get_sorted_chunk_names(src_dir_path=parser_results_dir,
-                                                                    mask=rf'^.*{self.records_ext}$')
+            chunk_records_file_names = self.get_sorted_chunk_names(src_dir_path=parser_results_dir,
+                                                                   mask=rf'^.*{self.records_ext}$')
             chunk_records_file_paths = [os.path.join(src_dir_path, parser_name, n) for n in chunk_records_file_names]
 
             # one create a param set for each file path
@@ -279,7 +279,7 @@ class FileParser(ParallelExecutor):
                                  table_headers: List[str]
                                  ) -> None:
         # parse source file path
-        src_file_dir, src_file_name, src_file_ext = self._split_file_path(src_file_path)
+        src_file_dir, src_file_name, src_file_ext = self.split_file_path(src_file_path)
 
         # get result file path
         dst_file_name = f'{src_file_name}.tsv'
@@ -306,11 +306,11 @@ class FileParser(ParallelExecutor):
             parser_tables_dir = os.path.join(src_dir_path, parser_name)
 
             # get chunk .records file paths
-            chunk_tables_file_names = self._get_sorted_chunk_names(src_dir_path=parser_tables_dir)
+            chunk_tables_file_names = self.get_sorted_chunk_names(src_dir_path=parser_tables_dir)
             chunk_tables_file_paths = [os.path.join(src_dir_path, parser_name, n) for n in chunk_tables_file_names]
 
             # parse first of the table files paths
-            _, _, src_file_ext = self._split_file_path(chunk_tables_file_paths[0])
+            _, _, src_file_ext = self.split_file_path(chunk_tables_file_paths[0])
 
             # get final table file path
             dst_file_name = f'{orig_file_name_base}.{parser_name}{src_file_ext}'
@@ -331,12 +331,12 @@ class FileParser(ParallelExecutor):
 
         # get file paths of files with unparsed logs
         unparsed_dir_path = os.path.join(src_dir_path, self.unparsed_short_name)
-        chunk_unparsed_file_names = self._get_sorted_chunk_names(src_dir_path=unparsed_dir_path)
+        chunk_unparsed_file_names = self.get_sorted_chunk_names(src_dir_path=unparsed_dir_path)
         chunk_unparsed_file_paths = [os.path.join(src_dir_path, self.unparsed_short_name, n)
                                      for n in chunk_unparsed_file_names]
 
         # parse first of the unparsed chunk file paths
-        src_file_dir, src_file_name, src_file_ext = self._split_file_path(chunk_unparsed_file_paths[0])
+        src_file_dir, src_file_name, src_file_ext = self.split_file_path(chunk_unparsed_file_paths[0])
 
         # get final table file path
         dst_file_name = f'{orig_file_name_base}.{self.unparsed_short_name}{src_file_ext}'
@@ -351,13 +351,13 @@ class FileParser(ParallelExecutor):
                 dst_file.writelines(lines)
 
     @staticmethod
-    def _split_file_path(file_path: str):
+    def split_file_path(file_path: str):
         file_dir, file_name = os.path.split(file_path)
         file_name_base, file_name_ext = os.path.splitext(file_name)
         return file_dir, file_name_base, file_name_ext
 
     @staticmethod
-    def _get_sorted_chunk_names(src_dir_path: str, mask: str = '.*') -> List[str]:
+    def get_sorted_chunk_names(src_dir_path: str, mask: str = '.*') -> List[str]:
         # define sort key function
         def key(file_name: str):
             assert (match := FILE_CHUNK_SORT_MASK.match(file_name)), \
