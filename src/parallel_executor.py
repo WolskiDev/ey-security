@@ -39,7 +39,7 @@ class ParallelExecutor:
         effective_processes_num = min(self.max_processes, len(params_list))
 
         enum_params_list = [((idx, len(params_list)), params) for idx, params in enumerate(params_list, start=1)]
-        params_chunks = self._spread(enum_params_list, effective_processes_num)
+        params_chunks = self.spread(enum_params_list, effective_processes_num)
 
         if effective_processes_num >= 2:
             self.log.info(f'{self._auto_log_msg_prefix}Initializing process pool...')
@@ -142,7 +142,7 @@ class ParallelExecutor:
         return task_id, result
 
     @staticmethod
-    def _spread(lst: Iterable, n: int) -> List[List[Any]]:
+    def spread(lst: Iterable, n: int) -> List[List[Any]]:
         chunks = [[] for _ in range(n)]
         for idx, val in enumerate(lst):
             chunks[idx % n].append(val)
