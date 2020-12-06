@@ -19,6 +19,7 @@ def init(args):
         log_parsers=[HuaweiLogParser, CheckPointLogParser],
         max_processes=args.max_processes,
         max_threads=args.max_threads,
+        parse_chunk_size=args.chunk_size,
         delete_intermediate_result_dirs=(not args.preserve_intermediate_results)
     )
     fp.parse_file(

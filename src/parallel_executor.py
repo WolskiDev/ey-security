@@ -1,4 +1,3 @@
-import logging
 import multiprocessing
 from multiprocessing.pool import ThreadPool
 from typing import Tuple, List, Iterable, Callable, Any, Union
@@ -8,11 +7,9 @@ from src.utils import Timer, initialize_logger
 
 DEFAULT_PROCESS_NUM = multiprocessing.cpu_count() - 1
 DEFAULT_THREAD_NUM = 1
-LOGGER_NAME = 'parallel_executor'
 
 
-initialize_logger(LOGGER_NAME)
-script_logger = logging.getLogger(LOGGER_NAME)
+script_logger = initialize_logger('parallel_executor')
 
 
 def params(*args, **kwargs):
@@ -22,10 +19,12 @@ def params(*args, **kwargs):
 class ParallelExecutor:
     """Simple tool for process and thread based task parallelization."""
 
-    _auto_log_msg_prefix = ""
-
-    def __init__(self, max_processes: int = DEFAULT_PROCESS_NUM, max_threads: int = DEFAULT_THREAD_NUM):
+    def __init__(self,
+                 max_processes: int = DEFAULT_PROCESS_NUM,
+                 max_threads: int = DEFAULT_THREAD_NUM,
+                 auto_log_msg_prefix: str = ''):
         self.log = script_logger
+        self._auto_log_msg_prefix = auto_log_msg_prefix
 
         assert int(max_processes) > 0, "Max number of processes has to be greater than zero."
         self.max_processes = int(max_processes)
@@ -41,7 +40,7 @@ class ParallelExecutor:
         effective_processes_num = min(self.max_processes, len(params_list))
 
         enum_params_list = [((idx, len(params_list)), params) for idx, params in enumerate(params_list, start=1)]
-        params_chunks = self._spread(enum_params_list, effective_processes_num)
+        params_chunks = self.spread(enum_params_list, effective_processes_num)
 
         if effective_processes_num >= 2:
             self.log.info(f'{self._auto_log_msg_prefix}Initializing process pool...')
@@ -144,7 +143,7 @@ class ParallelExecutor:
         return task_id, result
 
     @staticmethod
-    def _spread(lst: Iterable, n: int) -> List[List[Any]]:
+    def spread(lst: Iterable, n: int) -> List[List[Any]]:
         chunks = [[] for _ in range(n)]
         for idx, val in enumerate(lst):
             chunks[idx % n].append(val)
