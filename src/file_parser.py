@@ -349,7 +349,7 @@ class FileParser(ParallelExecutor):
                               f' {len(chunk_tables_file_paths)}')
                 with open(dst_file_path, mode='a+') as dst_file:
                     with open(table_file_path) as table_file:
-                        if table_idx > 0:
+                        if table_idx > 1:
                             next(table_file)
                         lines = table_file.readlines()
                     dst_file.writelines(lines)
